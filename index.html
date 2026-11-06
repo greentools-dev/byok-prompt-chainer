@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In-Browser Multi-Step Prompt Pipeline & Chain Runner | GreenTools</title>
+  <meta name="description" content="Chain sequential LLM prompts (Analyze -> Draft -> Red-Team Polish) directly in your browser. 100% client-side BYOK multi-step AI workflow with zero intermediate cloud logging.">
+  <meta name="keywords" content="prompt chainer, multi-step prompt pipeline, ai chain of thought runner, byok prompt studio, sequential prompt runner, client-side llm workflow">
+  <link rel="canonical" href="https://greentools-dev.github.io/byok-prompt-chainer/">
+  <meta property="og:title" content="In-Browser Multi-Step Prompt Pipeline & Chain Runner">
+  <meta property="og:description" content="Chain multi-step AI prompts with zero backend logging. 100% private in-browser BYOK studio.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://greentools-dev.github.io/byok-prompt-chainer/">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+
+  <!-- Structured Data JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "In-Browser Multi-Step Prompt Pipeline & Chain Runner",
+        "url": "https://greentools-dev.github.io/byok-prompt-chainer/",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "description": "Multi-step prompt chain runner executing sequential async reasoning pipelines directly in your browser without 3rd-party servers.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a multi-step prompt chain?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Rather than attempting a complex task in a single shot, a prompt chain breaks work into sequential stages: Stage 1 extracts core facts and constraints, Stage 2 generates the draft, and Stage 3 critiques and polishes the result."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where is my confidential text sent?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Your text is sent directly from your browser to Google or OpenAI using your personal API key. No intermediate server or database ever sees your inputs or outputs."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body class="min-h-screen text-slate-900 flex flex-col font-sans antialiased selection:bg-indigo-600 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="https://greentools-dev.github.io/" class="flex items-center gap-2 group text-slate-800 hover:text-slate-950 font-bold transition-colors">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-600/30">
+            <i data-lucide="git-branch" class="w-4 h-4"></i>
+          </div>
+          <span class="tracking-tight text-base font-extrabold">GreenTools<span class="text-indigo-600">.dev</span></span>
+        </a>
+        <span class="text-slate-300">/</span>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 border border-indigo-200">
+          Prompt Chainer
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button type="button" id="btn-open-settings" class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-2xs">
+          <i data-lucide="key" class="w-3.5 h-3.5 text-indigo-600"></i>
+          <span id="api-status-label">API Key: Not Set</span>
+        </button>
+        <a href="https://greentools-dev.github.io/" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+          All 40 Tools
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="alert-banner" class="hidden bg-slate-900 text-white text-xs px-4 py-2.5 transition-all">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <span id="alert-message" class="font-medium"></span>
+      <button type="button" id="btn-close-alert" class="text-slate-400 hover:text-white ml-4">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-8 flex flex-col">
+    <!-- Hero Header -->
+    <div class="text-center max-w-3xl mx-auto mb-8">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        In-Browser Multi-Step Prompt Pipeline &amp; Chain Runner
+      </h1>
+      <p class="mt-2.5 text-slate-600 text-sm sm:text-base leading-relaxed">
+        Run sequential chain-of-thought pipelines (<span class="font-semibold text-indigo-600">Analyze</span> &rarr; <span class="font-semibold text-indigo-600">Draft</span> &rarr; <span class="font-semibold text-indigo-600">Critique &amp; Refine</span>) with zero cloud storage and zero subscription fees.
+      </p>
+    </div>
+
+    <!-- Pipeline Input & Launch Card -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-8 max-w-4xl mx-auto w-full flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+          <i data-lucide="terminal" class="w-4 h-4 text-indigo-600"></i>
+          Pipeline Seed Input
+        </span>
+        <button type="button" id="btn-demo-mode" class="text-xs font-semibold text-indigo-700 hover:text-indigo-800 underline underline-offset-2">
+          Try Demo (No Key)
+        </button>
+      </div>
+
+      <div>
+        <label for="input-user-text" class="block text-xs font-semibold text-slate-700 mb-1">
+          Objective / Raw Material / Brief
+        </label>
+        <textarea id="input-user-text" rows="4" placeholder="Enter your project objective, article concept, marketing strategy, or complex question here..." class="w-full p-3 text-xs font-sans rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"></textarea>
+      </div>
+
+      <!-- Pipeline Config Accordion Toggle -->
+      <details class="text-xs border border-slate-100 bg-slate-50/50 rounded-xl p-3">
+        <summary class="font-bold text-slate-700 cursor-pointer select-none flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-3.5 h-3.5 text-indigo-600"></i>
+            View &amp; Customize 3-Stage Prompt Templates
+          </span>
+          <span class="text-[10px] text-slate-400 font-normal">Click to expand</span>
+        </summary>
+        <div class="mt-3 space-y-3 pt-2 border-t border-slate-200">
+          <div>
+            <span class="font-bold text-slate-800 block mb-1">Stage 1: Deconstruction &amp; Key Insight Extraction</span>
+            <input type="text" id="stage1-prompt-template" value="Deconstruct the following input into core pillars, constraints, key objectives, and risks: {{input}}" class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 font-mono text-[11px]">
+          </div>
+          <div>
+            <span class="font-bold text-slate-800 block mb-1">Stage 2: Comprehensive Draft Generation</span>
+            <input type="text" id="stage2-prompt-template" value="Using these extracted insights: {{stage1}}, generate a structured, high-impact execution draft." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 font-mono text-[11px]">
+          </div>
+          <div>
+            <span class="font-bold text-slate-800 block mb-1">Stage 3: Devil's Advocate Critique &amp; Final Polish</span>
+            <input type="text" id="stage3-prompt-template" value="Red-team and rigorously critique this draft: {{stage2}}. Eliminate fluff, fix weaknesses, and output the polished master version." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 font-mono text-[11px]">
+          </div>
+        </div>
+      </details>
+
+      <div class="pt-2 flex items-center justify-between gap-3 flex-wrap">
+        <span class="text-[11px] text-slate-400">Sequential async execution &bull; 3 passes of progressive refinement</span>
+        <button type="button" id="btn-run-pipeline" class="py-2.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span id="label-run-pipeline">Run 3-Stage Pipeline</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pipeline Stages Showcase Board -->
+    <div class="max-w-5xl mx-auto w-full flex flex-col gap-6">
+      
+      <!-- Pipeline Header & Export Actions -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-base sm:text-lg font-bold text-slate-900">Chain Execution Workspace</h2>
+          <div class="text-xs text-slate-500 mt-0.5" id="pipeline-status-summary">
+            Status: Ready to execute
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" id="btn-copy-final" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span id="label-copy-final">Copy Final Master Output</span>
+          </button>
+          <button type="button" id="btn-export-markdown" class="px-3.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors flex items-center gap-1.5">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            Export Chain to Markdown
+          </button>
+        </div>
+      </div>
+
+      <!-- Stage 1 Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">1</span>
+            <span class="font-bold text-slate-900 text-sm">Stage 1 &bull; Insights &amp; Constraint Deconstruction</span>
+          </div>
+          <span id="badge-stage-1" class="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-600">
+            Pending
+          </span>
+        </div>
+        <div id="output-stage-1" class="p-4 rounded-xl bg-slate-50 text-xs text-slate-700 leading-relaxed font-sans whitespace-pre-wrap min-h-[90px] border border-slate-100">
+          Awaiting pipeline trigger...
+        </div>
+      </div>
+
+      <!-- Stage 2 Card -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center font-mono">2</span>
+            <span class="font-bold text-slate-900 text-sm">Stage 2 &bull; Comprehensive Strategy &amp; Draft</span>
+          </div>
+          <span id="badge-stage-2" class="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-600">
+            Pending
+          </span>
+        </div>
+        <div id="output-stage-2" class="p-4 rounded-xl bg-slate-50 text-xs text-slate-700 leading-relaxed font-sans whitespace-pre-wrap min-h-[90px] border border-slate-100">
+          Awaiting Stage 1 completion...
+        </div>
+      </div>
+
+      <!-- Stage 3 Card (Final Master Output) -->
+      <div class="bg-white rounded-2xl border-2 border-indigo-200 p-6 shadow-sm flex flex-col gap-3">
+        <div class="flex items-center justify-between pb-3 border-b border-indigo-100 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center font-mono">3</span>
+            <span class="font-bold text-slate-900 text-sm">Stage 3 &bull; Devil's Advocate Critique &amp; Refined Master</span>
+          </div>
+          <span id="badge-stage-3" class="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            Master Output
+          </span>
+        </div>
+        <div id="output-stage-3" class="p-4 rounded-xl bg-indigo-50/40 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-wrap min-h-[110px] border border-indigo-100">
+          Awaiting Stage 2 completion...
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BYOK Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 relative">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+          <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <i data-lucide="key" class="w-4 h-4 text-indigo-600"></i>
+            API Key Settings (BYOK)
+          </h3>
+          <button type="button" id="btn-close-settings" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Provider</label>
+            <select id="select-provider" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="gemini">Google Gemini (Recommended & Free tier)</option>
+              <option value="openai">OpenAI / OpenRouter Compatible</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Model</label>
+            <input type="text" id="input-model" value="gemini-2.5-flash" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">API Key</label>
+            <input type="password" id="input-api-key" placeholder="AIzaSy... or sk-..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+            <p class="text-[11px] text-slate-400 mt-1">Stored only in localStorage.byok_api_key.</p>
+          </div>
+
+          <div class="pt-2 flex items-center justify-between">
+            <button type="button" id="btn-clear-key" class="text-rose-600 hover:text-rose-700 font-semibold">
+              Purge Key
+            </button>
+            <button type="button" id="btn-save-settings" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors">
+              Save Key
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sponsor Slot -->
+    <aside id="sponsor-slot" class="mt-12 p-5 rounded-2xl border border-dashed border-slate-300 bg-white text-center text-xs text-slate-500 max-w-3xl mx-auto shadow-2xs">
+      <span class="font-semibold text-slate-600 uppercase tracking-wider text-[11px] block mb-1">Sponsored</span>
+      Scale cognitive throughput with autonomous in-browser prompt chaining pipelines.
+    </aside>
+
+    <!-- Guide & FAQ -->
+    <section class="mt-12 bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm max-w-5xl mx-auto w-full">
+      <h2 class="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+        <i data-lucide="help-circle" class="w-5 h-5 text-indigo-600"></i>
+        Prompt Chaining Architecture &amp; FAQ
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-600">
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-1">Why is a 3-stage chain better than one prompt?</h3>
+          <p class="leading-relaxed">
+            When asked to draft and critique simultaneously, LLMs suffer from "confirmation bias" and skip deep self-correction. Forcing Stage 1 (Deconstruction) &rarr; Stage 2 (Draft) &rarr; Stage 3 (Red-Team Critique) yields drastically higher rigor.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-1">Can I modify the prompt templates?</h3>
+          <p class="leading-relaxed">
+            Yes. Click "View &amp; Customize 3-Stage Prompt Templates" to tailor the instructions or introduce specific domain rubrics, coding standards, or tone constraints.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-1">Is this secure for confidential business briefs?</h3>
+          <p class="leading-relaxed">
+            Yes. The entire sequential flow happens in your browser's JavaScript runtime. Your prompts never transit any third-party analytics or intermediary servers.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-slate-800 mb-1">What happens if an API call fails mid-chain?</h3>
+          <p class="leading-relaxed">
+            The studio displays an inline alert indicating which stage encountered an error (e.g. rate limit or invalid key) so you can fix settings without losing prior completed stages.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200/80 bg-white mt-12 py-6 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-800">GreenTools.dev</span>
+        <span>&bull;</span>
+        <span>100% Client-Side Privacy Web Utilities</span>
+      </div>
+      <div>
+        <span>Built with pure JavaScript &amp; Web Standards. Zero tracking.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // State
+    let chainResults = {
+      stage1: '',
+      stage2: '',
+      stage3: ''
+    };
+
+    const demoPayload = {
+      input: "Build a go-to-market plan for GreenTools: a suite of 40 client-side web utilities replacing costly SaaS subscriptions with zero-cloud, 100% browser memory privacy.",
+      stage1: `### KEY CONSTRAINTS & EXTRACTED INSIGHTS:
+- **Core Value Proposition**: 100% in-browser client-side execution; data never leaves memory; zero account creation; replaces $20-50/mo SaaS bloat.
+- **Primary ICP (Ideal Customer Profile)**: Developers handling API keys/confidential JSON, creators needing quick thumbnail/audio checks, solo founders tired of tool sprawl.
+- **Key Friction & Risk**: Skepticism around whether browser-only tools can perform heavy tasks (C2PA parsing, LUFS metering, PDF redaction).
+- **Primary Moat**: Extreme speed (sub-50ms load), zero tracking, public GitHub Pages transparency.`,
+      stage2: `### GTM EXECUTION ROADMAP:
+
+1. **Phase 1: Developer Community Seeding (Days 1–7)**
+   - Launch on Show HN and Reddit (r/webdev, r/privacy) focusing on the "Anti-SaaS" philosophy: no logins, zero trackers, 100% open client-side code.
+   - Highlight killer showcase tools: Notion CSV cleaner, Audio LUFS compliance meter, C2PA checker.
+
+2. **Phase 2: Creator & Marketer Workflow Amplification (Days 8–18)**
+   - Target YouTube thumbnail designers and TikTok creators with the Viral Hook & Contrast Visualizer.
+   - Distribute free LinkedIn Carousel Studio workflows to build organic word of mouth.
+
+3. **Phase 3: Programmatic SEO & Hub Authority (Days 19–30)**
+   - Index all 40 single-purpose tools with dedicated FAQPage and WebApplication Schema.org markup.
+   - Aggregate all utilities under the master landing hub (greentools.dev).`,
+      stage3: `### DEVIL'S ADVOCATE CRITIQUE & POLISHED MASTER PLAN:
+
+**Red-Team Vulnerabilities Identified**:
+- *Critique 1*: "Free tools without accounts" struggle with retention.
+  *Antidote*: Embed 1-click browser bookmarking and local storage persistence for all user configs.
+- *Critique 2*: Community launches often result in one-day traffic spikes followed by a plateau.
+  *Antidote*: Turn the GitHub repositories into public templates so developers fork and contribute.
+
+**FINAL EXECUTIVE DIRECTIVE**:
+Deploy the 40-tool network with instant client-side execution. Lead messaging with the "Zero-Cloud Guarantee" and leverage direct BYOK architecture so power users generate high-end assets at raw API wholesale cost.`
+    };
+
+    // DOM Elements
+    const inputUserText = document.getElementById('input-user-text');
+    const stage1PromptTemplate = document.getElementById('stage1-prompt-template');
+    const stage2PromptTemplate = document.getElementById('stage2-prompt-template');
+    const stage3PromptTemplate = document.getElementById('stage3-prompt-template');
+    const btnRunPipeline = document.getElementById('btn-run-pipeline');
+    const labelRunPipeline = document.getElementById('label-run-pipeline');
+    const btnDemoMode = document.getElementById('btn-demo-mode');
+    const pipelineStatusSummary = document.getElementById('pipeline-status-summary');
+
+    const badgeStage1 = document.getElementById('badge-stage-1');
+    const badgeStage2 = document.getElementById('badge-stage-2');
+    const badgeStage3 = document.getElementById('badge-stage-3');
+
+    const outputStage1 = document.getElementById('output-stage-1');
+    const outputStage2 = document.getElementById('output-stage-2');
+    const outputStage3 = document.getElementById('output-stage-3');
+
+    const btnCopyFinal = document.getElementById('btn-copy-final');
+    const labelCopyFinal = document.getElementById('label-copy-final');
+    const btnExportMarkdown = document.getElementById('btn-export-markdown');
+
+    // BYOK elements
+    const btnOpenSettings = document.getElementById('btn-open-settings');
+    const btnCloseSettings = document.getElementById('btn-close-settings');
+    const settingsModal = document.getElementById('settings-modal');
+    const apiStatusLabel = document.getElementById('api-status-label');
+    const selectProvider = document.getElementById('select-provider');
+    const inputModel = document.getElementById('input-model');
+    const inputApiKey = document.getElementById('input-api-key');
+    const btnSaveSettings = document.getElementById('btn-save-settings');
+    const btnClearKey = document.getElementById('btn-clear-key');
+
+    const alertBanner = document.getElementById('alert-banner');
+    const alertMessage = document.getElementById('alert-message');
+    const btnCloseAlert = document.getElementById('btn-close-alert');
+
+    function showAlert(msg) {
+      alertMessage.textContent = msg;
+      alertBanner.classList.remove('hidden');
+    }
+    btnCloseAlert.addEventListener('click', () => alertBanner.classList.add('hidden'));
+
+    // Settings
+    function loadSettings() {
+      const key = localStorage.getItem('byok_api_key');
+      const provider = localStorage.getItem('byok_provider') || 'gemini';
+      const model = localStorage.getItem('byok_model') || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+
+      selectProvider.value = provider;
+      inputModel.value = model;
+      if (key) {
+        inputApiKey.value = key;
+        apiStatusLabel.textContent = `API: ${key.slice(0, 4)}...${key.slice(-4)}`;
+      } else {
+        inputApiKey.value = '';
+        apiStatusLabel.textContent = 'API Key: Not Set';
+      }
+    }
+
+    btnOpenSettings.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+    btnSaveSettings.addEventListener('click', () => {
+      const key = inputApiKey.value.trim();
+      const provider = selectProvider.value;
+      const model = inputModel.value.trim();
+
+      localStorage.setItem('byok_provider', provider);
+      localStorage.setItem('byok_model', model);
+      if (key) {
+        localStorage.setItem('byok_api_key', key);
+      } else {
+        localStorage.removeItem('byok_api_key');
+      }
+      loadSettings();
+      settingsModal.classList.add('hidden');
+      showAlert('API Key settings saved.');
+    });
+
+    btnClearKey.addEventListener('click', () => {
+      localStorage.removeItem('byok_api_key');
+      inputApiKey.value = '';
+      loadSettings();
+      settingsModal.classList.add('hidden');
+      showAlert('API Key purged.');
+    });
+
+    // Helper: Execute Single LLM Stage via BYOK
+    async function executeLlmCall(promptText) {
+      const key = localStorage.getItem('byok_api_key');
+      if (!key) throw new Error('API Key not set. Click "API Key: Not Set" to configure.');
+
+      const provider = localStorage.getItem('byok_provider') || 'gemini';
+      const model = localStorage.getItem('byok_model') || (provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini');
+
+      if (provider === 'gemini') {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }]
+          })
+        });
+        if (!res.ok) throw new Error(`Gemini API error ${res.status}: ${res.statusText}`);
+        const data = await res.json();
+        return data.candidates[0].content.parts[0].text;
+      } else {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: promptText }]
+          })
+        });
+        if (!res.ok) throw new Error(`OpenAI API error ${res.status}: ${res.statusText}`);
+        const data = await res.json();
+        return data.choices[0].message.content;
+      }
+    }
+
+    // Run Pipeline
+    btnRunPipeline.addEventListener('click', async () => {
+      const input = inputUserText.value.trim();
+      if (!input) {
+        showAlert('Please enter an objective or input text first.');
+        return;
+      }
+
+      const key = localStorage.getItem('byok_api_key');
+      if (!key) {
+        showAlert('No API Key detected. Please set your key (top right) or use Try Demo.');
+        settingsModal.classList.remove('hidden');
+        return;
+      }
+
+      btnRunPipeline.disabled = true;
+      labelRunPipeline.textContent = 'Executing Pipeline...';
+      pipelineStatusSummary.textContent = 'Status: Running Stage 1 of 3...';
+
+      try {
+        // Stage 1
+        badgeStage1.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-800 animate-pulse';
+        badgeStage1.textContent = 'Analyzing...';
+        outputStage1.textContent = 'Extracting key constraints and insights...';
+
+        const stage1Prompt = stage1PromptTemplate.value.replace('{{input}}', input);
+        const stage1Text = await executeLlmCall(stage1Prompt);
+        chainResults.stage1 = stage1Text;
+        outputStage1.textContent = stage1Text;
+        badgeStage1.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        badgeStage1.textContent = 'Completed';
+
+        // Stage 2
+        pipelineStatusSummary.textContent = 'Status: Running Stage 2 of 3...';
+        badgeStage2.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-800 animate-pulse';
+        badgeStage2.textContent = 'Drafting...';
+        outputStage2.textContent = 'Synthesizing strategy and generating comprehensive draft...';
+
+        const stage2Prompt = stage2PromptTemplate.value.replace('{{stage1}}', stage1Text).replace('{{input}}', input);
+        const stage2Text = await executeLlmCall(stage2Prompt);
+        chainResults.stage2 = stage2Text;
+        outputStage2.textContent = stage2Text;
+        badgeStage2.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        badgeStage2.textContent = 'Completed';
+
+        // Stage 3
+        pipelineStatusSummary.textContent = 'Status: Running Stage 3 of 3...';
+        badgeStage3.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-800 animate-pulse';
+        badgeStage3.textContent = 'Critiquing & Refining...';
+        outputStage3.textContent = 'Conducting devil’s advocate review and generating final polished master output...';
+
+        const stage3Prompt = stage3PromptTemplate.value.replace('{{stage2}}', stage2Text).replace('{{stage1}}', stage1Text);
+        const stage3Text = await executeLlmCall(stage3Prompt);
+        chainResults.stage3 = stage3Text;
+        outputStage3.textContent = stage3Text;
+        badgeStage3.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold';
+        badgeStage3.textContent = 'Master Refined';
+
+        pipelineStatusSummary.textContent = 'Status: Pipeline Complete! All 3 Stages Verified.';
+        showAlert('Multi-stage prompt chain executed successfully!');
+      } catch (err) {
+        pipelineStatusSummary.textContent = 'Status: Execution failed: ' + err.message;
+        showAlert('Pipeline Error: ' + err.message);
+      } finally {
+        btnRunPipeline.disabled = false;
+        labelRunPipeline.textContent = 'Run 3-Stage Pipeline';
+      }
+    });
+
+    // Demo Mode
+    btnDemoMode.addEventListener('click', () => {
+      inputUserText.value = demoPayload.input;
+      chainResults = { ...demoPayload };
+
+      outputStage1.textContent = demoPayload.stage1;
+      outputStage2.textContent = demoPayload.stage2;
+      outputStage3.textContent = demoPayload.stage3;
+
+      badgeStage1.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+      badgeStage1.textContent = 'Completed (Demo)';
+
+      badgeStage2.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200';
+      badgeStage2.textContent = 'Completed (Demo)';
+
+      badgeStage3.className = 'text-[11px] font-mono px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold';
+      badgeStage3.textContent = 'Master Refined (Demo)';
+
+      pipelineStatusSummary.textContent = 'Status: Loaded 3-Stage GTM Pipeline Demo';
+      showAlert('Loaded verified 3-stage multi-step chain execution demo!');
+    });
+
+    // Copy Final Master
+    btnCopyFinal.addEventListener('click', async () => {
+      const text = chainResults.stage3 || outputStage3.textContent;
+      await navigator.clipboard.writeText(text);
+      labelCopyFinal.textContent = 'Master Copied!';
+      btnCopyFinal.classList.replace('bg-indigo-600', 'bg-indigo-700');
+      setTimeout(() => {
+        labelCopyFinal.textContent = 'Copy Final Master Output';
+        btnCopyFinal.classList.replace('bg-indigo-700', 'bg-indigo-600');
+      }, 2000);
+    });
+
+    // Export Markdown
+    btnExportMarkdown.addEventListener('click', () => {
+      const md = `# Multi-Step Prompt Chain Execution Log
+Generated with GreenTools Prompt Chainer (100% Client-Side)
+
+## Seed Input
+${inputUserText.value || 'None'}
+
+---
+
+## Stage 1: Deconstruction & Insights
+${chainResults.stage1 || outputStage1.textContent}
+
+---
+
+## Stage 2: Comprehensive Draft
+${chainResults.stage2 || outputStage2.textContent}
+
+---
+
+## Stage 3: Devil's Advocate Critique & Master Polish
+${chainResults.stage3 || outputStage3.textContent}
+`;
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'prompt-chain-execution.md';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Init
+    loadSettings();
+  </script>
+</body>
+</html>
